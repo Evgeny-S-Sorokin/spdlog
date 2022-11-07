@@ -102,39 +102,37 @@ SPDLOG_INLINE void rotating_file_sink<Mutex>::flush_()
 
 // Rotate files:
 // log.txt -> log.1.txt
-// log.1.txt -> log.2.txt
-// log.2.txt -> log.3.txt
-// log.3.txt -> delete
+// log.txt -> log.2.txt
+// log.txt -> log.3.txt
 template<typename Mutex>
 SPDLOG_INLINE void rotating_file_sink<Mutex>::rotate_()
 {
     using details::os::filename_to_str;
     using details::os::path_exists;
+    static uint64_t rotation_cycle = 0;
 
     file_helper_.close();
-    for (auto i = max_files_; i > 0; --i)
+    filename_t src = calc_filename(base_filename_, 0);
+    if (!path_exists(src))
     {
-        filename_t src = calc_filename(base_filename_, i - 1);
-        if (!path_exists(src))
-        {
-            continue;
-        }
-        filename_t target = calc_filename(base_filename_, i);
+        continue;
+    }
+    filename_t target = calc_filename(base_filename_, ++rotation_cycle);
 
+    if (!rename_file_(src, target))
+    {
+        // if failed try again after a small delay.
+        // this is a workaround to a windows issue, where very high rotation
+        // rates can cause the rename to fail with permission denied (because of antivirus?).
+        details::os::sleep_for_millis(100);
         if (!rename_file_(src, target))
         {
-            // if failed try again after a small delay.
-            // this is a workaround to a windows issue, where very high rotation
-            // rates can cause the rename to fail with permission denied (because of antivirus?).
-            details::os::sleep_for_millis(100);
-            if (!rename_file_(src, target))
-            {
-                file_helper_.reopen(true); // truncate the log file anyway to prevent it to grow beyond its limit!
-                current_size_ = 0;
-                throw_spdlog_ex("rotating_file_sink: failed renaming " + filename_to_str(src) + " to " + filename_to_str(target), errno);
-            }
+            file_helper_.reopen(true); // truncate the log file anyway to prevent it to grow beyond its limit!
+            current_size_ = 0;
+            throw_spdlog_ex("rotating_file_sink: failed renaming " + filename_to_str(src) + " to " + filename_to_str(target), errno);
         }
     }
+
     file_helper_.reopen(true);
 }
 
