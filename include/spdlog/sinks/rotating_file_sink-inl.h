@@ -113,10 +113,6 @@ SPDLOG_INLINE void rotating_file_sink<Mutex>::rotate_()
 
     file_helper_.close();
     filename_t src = calc_filename(base_filename_, 0);
-    if (!path_exists(src))
-    {
-        continue;
-    }
     filename_t target = calc_filename(base_filename_, ++rotation_cycle);
 
     if (!rename_file_(src, target))
