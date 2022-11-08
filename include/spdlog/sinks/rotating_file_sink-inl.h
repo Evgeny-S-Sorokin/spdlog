@@ -130,9 +130,8 @@ SPDLOG_INLINE void rotating_file_sink<Mutex>::rotate_()
     }
     if (rotation_cycle > max_files_)
     {
-        filename_t old_file = calc_filename(base_filename_, max_files_ - rotation_cycle);
+        filename_t old_file = calc_filename(base_filename_, rotation_cycle - max_files_);
         (void)details::os::remove(old_file);
-
     }
 
     file_helper_.reopen(true);
